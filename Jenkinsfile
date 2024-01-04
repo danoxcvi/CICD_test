@@ -2,20 +2,38 @@ pipeline {
     agent any 
 
     stages {
-      stage('Build') {
+      stage('Pre-Checks') {
             steps {
-                echo 'Building..'
+                echo 'Pre-Checking....'
+                sh 'ansible-playbook pre_checks.yml -i $HOSTS'
             }
       }
-      stage('Test') {
+      stage('Run Playbooks') {
         steps {
-              echo 'Testing..'
+            echo 'Deploying....'
+            sh 'ansible-playbook deploy_core.yml -i $HOSTS'
+            sh 'ansible-playbook deploy_access.yml -i $HOSTS'
         }
       }
-      stage('Deploy') {
+      stage('TEST') {
         steps {
-              echo 'Deploying.....'
+            echo 'TEST....'
+            sh 'ansible-playbook run_tests.yml -i $HOSTS'
         }
       }
     }
-}
+    post{
+        always{
+            echo "${currentBuild.fullDisplayName}"
+            echo "${currentBuild.result}"
+            echo 'reporting...."
+        }
+        success {
+            echo 'succeed'
+            sh 'test.py '${env.BRANCH_NAME}' '${currentBuild.fullDisplayName}'
+                '${BUILD_URL}/logTesst/progressiveTest?start=0' 'SUCCESSFUL' '${BUILD_NUMBER}'"
+        }
+        failed {
+            echo 'failed'
+            sh 'test.py '${env.BRANCH_NAME}' '${currentBuild.fullDisplayName}'
+                '${BUILD_URL}/logTesst/progressiveTest?start=0' 'FAILED' '${BUILD_NUMBER}'"
